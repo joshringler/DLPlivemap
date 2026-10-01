@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#111827" />
+  <title>DLP Live Tracker</title>
+  <link rel="preconnect" href="https://unpkg.com">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIINfQ3m3xj8G0y4uR7Y8k1yVv5f5k5h1jM=" crossorigin=""/>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <div class="eyebrow">DISNEYLAND PARIS</div>
+      <h1>Live Ride Tracker</h1>
+    </div>
+    <button id="refreshBtn" class="icon-btn" aria-label="Refresh live wait times">↻</button>
+  </header>
+
+  <section class="status-strip">
+    <div>
+      <strong id="lastUpdated">Loading live data…</strong>
+      <span id="dataStatus">Connecting to Queue-Times</span>
+    </div>
+    <div class="progress"><span id="progressBar"></span></div>
+  </section>
+
+  <main>
+    <section id="dashboard" class="stats-grid"></section>
+
+    <section class="controls">
+      <div class="segmented" role="tablist">
+        <button class="tab active" data-view="map">Map</button>
+        <button class="tab" data-view="list">List</button>
+        <button class="tab" data-view="checklist">Checklist</button>
+      </div>
+      <div class="filter-row">
+        <select id="parkFilter" aria-label="Park">
+          <option value="all">Both parks</option>
+          <option value="dlp">Disneyland Park</option>
+          <option value="daw">Disney Adventure World</option>
+        </select>
+        <select id="statusFilter" aria-label="Status">
+          <option value="all">All</option>
+          <option value="open">Open</option>
+          <option value="closed">Closed</option>
+          <option value="done">Completed</option>
+          <option value="todo">Not completed</option>
+        </select>
+        <input id="search" type="search" placeholder="Search attractions…" />
+      </div>
+    </section>
+
+    <section id="mapView" class="view">
+      <div id="map"></div>
+      <div class="map-legend">
+        <span><i class="dot green"></i> ≤20 min</span>
+        <span><i class="dot yellow"></i> 21–45</span>
+        <span><i class="dot orange"></i> 46–70</span>
+        <span><i class="dot red"></i> 70+</span>
+        <span><i class="dot gray"></i> Closed</span>
+      </div>
+    </section>
+
+    <section id="listView" class="view hidden">
+      <div id="rideList" class="ride-list"></div>
+    </section>
+
+    <section id="checklistView" class="view hidden">
+      <div class="checklist-head">
+        <div>
+          <h2>Your checklist</h2>
+          <p id="checklistSummary"></p>
+        </div>
+        <button id="resetBtn" class="secondary-btn">Reset</button>
+      </div>
+      <div id="checklist" class="checklist"></div>
+    </section>
+  </main>
+
+  <footer>
+    <div><strong>Live data:</strong> <a href="https://queue-times.com/" target="_blank" rel="noopener">Powered by Queue-Times.com</a></div>
+    <div class="footer-note">Wait times refresh every 5 minutes from the provider. Checklist progress is stored on this device.</div>
+  </footer>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="app.js"></script>
+</body>
+</html>
