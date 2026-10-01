@@ -3,6 +3,25 @@ const API = {
   daw: "https://queue-times.com/parks/28/queue_times.json"
 };
 
+
+// Master catalog: independent of live wait data so every experience remains visible.
+const MASTER_CATALOG = [
+  ["dlp","attraction","Main Street, U.S.A.","Main Street Vehicles"],["dlp","attraction","Main Street, U.S.A.","Disneyland Railroad"],["dlp","attraction","Main Street, U.S.A.","Horse-Drawn Streetcars"],["dlp","attraction","Main Street, U.S.A.","Discovery Arcade"],["dlp","attraction","Main Street, U.S.A.","Liberty Arcade"],
+  ["dlp","attraction","Adventureland","Pirates of the Caribbean"],["dlp","attraction","Adventureland","Indiana Jones™ and the Temple of Peril"],["dlp","attraction","Adventureland","Adventure Isle"],["dlp","attraction","Adventureland","La Cabane des Robinson"],["dlp","attraction","Adventureland","Le Passage Enchanté d'Aladdin"],
+  ["dlp","attraction","Frontierland","Big Thunder Mountain"],["dlp","attraction","Frontierland","Phantom Manor"],["dlp","attraction","Frontierland","Thunder Mesa Riverboat Landing"],["dlp","attraction","Frontierland","Rustler Roundup Shootin' Gallery"],
+  ["dlp","attraction","Fantasyland","Peter Pan's Flight"],["dlp","attraction","Fantasyland","it's a small world"],["dlp","attraction","Fantasyland","Dumbo the Flying Elephant"],["dlp","attraction","Fantasyland","Mad Hatter's Tea Cups"],["dlp","attraction","Fantasyland","Alice's Curious Labyrinth"],["dlp","attraction","Fantasyland","Casey Jr. – le Petit Train du Cirque"],["dlp","attraction","Fantasyland","Le Pays des Contes de Fées"],["dlp","attraction","Fantasyland","Le Carrousel de Lancelot"],["dlp","attraction","Fantasyland","Princess Pavilion"],["dlp","attraction","Fantasyland","Mickey's PhilharMagic"],
+  ["dlp","attraction","Discoveryland","Star Wars Hyperspace Mountain"],["dlp","attraction","Discoveryland","Buzz Lightyear Laser Blast"],["dlp","attraction","Discoveryland","Star Tours: The Adventures Continue"],["dlp","attraction","Discoveryland","Orbitron®"],["dlp","attraction","Discoveryland","Autopia, presented by Avis"],["dlp","attraction","Discoveryland","Les Mystères du Nautilus"],
+  ["daw","attraction","Adventure Way","Raiponce Tangled Spin"],["daw","attraction","Worlds of Pixar","Ratatouille : L’Aventure Totalement Toquée de Rémy"],["daw","attraction","Worlds of Pixar","Crush's Coaster"],["daw","attraction","Worlds of Pixar","Cars ROAD TRIP"],["daw","attraction","Worlds of Pixar","Cars Quatre Roues Rallye"],["daw","attraction","Toy Story Playland","RC Racer"],["daw","attraction","Toy Story Playland","Slinky Dog Zigzag Spin"],["daw","attraction","Toy Story Playland","Toy Soldiers Parachute Drop"],["daw","attraction","Avengers Campus","Spider-Man W.E.B. Adventure"],["daw","attraction","Avengers Campus","Avengers Assemble: Flight Force"],["daw","attraction","Avengers Campus","Hero Training Center"],["daw","attraction","World of Frozen","Frozen Ever After"],["daw","attraction","Front Lot","The Twilight Zone Tower of Terror™"],
+  ["dlp","show","Entertainment","Disney Stars on Parade"],["dlp","show","Entertainment","Disney Tales of Magic"],["dlp","show","Entertainment","The Lion King: Rhythms of the Pride Lands"],["dlp","show","Entertainment","Seasonal Halloween entertainment"],["daw","show","Entertainment","Disney Cascade of Lights"],["daw","show","Entertainment","Disney Princess Cavalcade"],["daw","show","Entertainment","Mickey and the Magician"],["daw","show","Entertainment","TOGETHER: A Pixar Musical Adventure"],["daw","show","Entertainment","A Celebration in Arendelle"],["daw","show","Entertainment","Marvel Avengers Campus Live Action Entertainment"],
+  ["dlp","character","Character Encounters","Meet Mickey Mouse"],["dlp","character","Character Encounters","Disney Princess Characters — Princess Pavilion"],["dlp","character","Character Encounters","Star Wars Characters"],["dlp","character","Character Encounters","Classic Disney Characters"],["dlp","character","Character Encounters","Meet Jack Skellington and Sally"],["dlp","character","Character Encounters","Meet Goofy"],["dlp","character","Character Encounters","Meet Winnie the Pooh"],["daw","character","Character Encounters","Marvel Super Heroes"],["daw","character","Character Encounters","Pixar Characters"],["daw","character","Character Encounters","Toy Story Characters"],["daw","character","Character Encounters","Elsa & Anna — Rencontre Royale"]
+];
+const CATALOG_ALIASES={
+  "it's a small world":["\"it's a small world\""],"The Twilight Zone Tower of Terror™":["The Twilight Zone Tower of Terror","Tower of Terror"],"Ratatouille : L’Aventure Totalement Toquée de Rémy":["Ratatouille: The Adventure"],"Avengers Assemble: Flight Force":["Flight Force"],"Star Wars Hyperspace Mountain":["Hyperspace Mountain"],"Star Tours: The Adventures Continue":["Star Tours"]
+};
+function normName(s){return String(s||"").toLowerCase().replace(/[™®’'“”".:,!?–—-]/g," ").replace(/\s+/g," ").trim()}
+function findLiveFor(name,rows){const targets=[name,...(CATALOG_ALIASES[name]||[])].map(normName);return rows.find(r=>targets.some(t=>normName(r.name)===t||normName(r.name).includes(t)||t.includes(normName(r.name))))||null}
+function buildMaster(rows){const master=MASTER_CATALOG.map(([park,category,land,name],i)=>{const live=findLiveFor(name,rows);return {id:`catalog-${park}-${i}`,key:key(park,`catalog-${i}`,name),park,category,land,name,is_open:live?!!live.is_open:null,wait_time:live?Number(live.wait_time||0):null,fallback:!live,noLiveData:!live}});const known=new Set(master.map(r=>normName(r.name)));rows.forEach(r=>{if(!known.has(normName(r.name)))master.push({...r,category:"attraction",noLiveData:false})});return master}
+
 const PARKS = {
   dlp: { name:"Disneyland Park", center:[48.8728,2.7752] },
   daw: { name:"Disney Adventure World", center:[48.8680,2.7770] }
@@ -77,7 +96,14 @@ const FALLBACK = {
 };
 
 let rides = [];
-let checked = JSON.parse(localStorage.getItem("dlp_checked_v1") || "{}");
+let activeDay = localStorage.getItem("dlp_active_day") || "trip";
+let checkedByDay = JSON.parse(localStorage.getItem("dlp_checked_by_day_v1") || "{}");
+function dayStore(){ if(!checkedByDay[activeDay]) checkedByDay[activeDay]={}; return checkedByDay[activeDay]; }
+function save(){ localStorage.setItem("dlp_checked_by_day_v1", JSON.stringify(checkedByDay)); localStorage.setItem("dlp_active_day", activeDay); }
+function isDone(r){
+  if(activeDay === "trip") return Object.values(checkedByDay).some(day=>!!day[r.key]);
+  return !!dayStore()[r.key];
+}
 let map;
 let markers = new Map();
 let currentView = "map";
@@ -89,14 +115,13 @@ function coordFor(r){
   return PARKS[r.park].center;
 }
 function waitClass(r){
+  if(r.category!=="attraction" || r.noLiveData) return "closed";
   if(!r.is_open) return "closed";
   if(r.wait_time <= 20) return "green";
   if(r.wait_time <= 45) return "yellow";
   if(r.wait_time <= 70) return "orange";
   return "red";
 }
-function isDone(r){ return !!checked[r.key]; }
-function save(){ localStorage.setItem("dlp_checked_v1", JSON.stringify(checked)); }
 
 function toast(msg){
   const el=document.getElementById("toast"); el.textContent=msg; el.classList.add("show");
@@ -126,7 +151,8 @@ async function refresh(){
   const btn=document.getElementById("refreshBtn"); btn.disabled=true; btn.textContent="…";
   document.getElementById("dataStatus").textContent="Refreshing live wait times…";
   const [a,b]=await Promise.all([fetchPark("dlp"),fetchPark("daw")]);
-  rides=[...a,...b].filter((r,i,arr)=>arr.findIndex(x=>x.key===r.key)===i);
+  const liveRows=[...a,...b];
+  rides=buildMaster(liveRows);
   render();
   const live=rides.some(r=>!r.fallback);
   document.getElementById("lastUpdated").textContent=`Updated ${new Date().toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})}`;
@@ -138,23 +164,27 @@ async function refresh(){
 function filtered(){
   const park=document.getElementById("parkFilter").value;
   const status=document.getElementById("statusFilter").value;
+  const category=document.getElementById("categoryFilter").value;
   const q=document.getElementById("search").value.trim().toLowerCase();
   return rides.filter(r=>{
+    const category=document.getElementById("categoryFilter").value;
     if(park!=="all" && r.park!==park) return false;
-    if(status==="open" && !r.is_open) return false;
-    if(status==="closed" && r.is_open) return false;
+    if(category!=="all" && r.category!==category) return false;
+    if(status==="open" && (r.category!=="attraction" || !r.is_open)) return false;
+    if(status==="closed" && (r.category!=="attraction" || r.is_open!==false)) return false;
     if(status==="done" && !isDone(r)) return false;
     if(status==="todo" && isDone(r)) return false;
+    if(category!=="all" && r.category!==category) return false;
     return !q || `${r.name} ${r.land} ${PARKS[r.park].name}`.toLowerCase().includes(q);
   }).sort((a,b)=>a.name.localeCompare(b.name));
 }
 
 function renderStats(){
-  const total=rides.length, done=rides.filter(isDone).length, open=rides.filter(r=>r.is_open).length;
-  const waits=rides.filter(r=>r.is_open && !r.fallback).map(r=>r.wait_time);
+  const total=rides.length, done=rides.filter(isDone).length, open=rides.filter(r=>r.category==="attraction" && r.is_open).length;
+  const waits=rides.filter(r=>r.category==="attraction" && r.is_open && !r.noLiveData).map(r=>r.wait_time);
   const avg=waits.length ? Math.round(waits.reduce((a,b)=>a+b,0)/waits.length) : 0;
   document.getElementById("dashboard").innerHTML=`
-    <div class="stat"><div class="value">${done}/${total}</div><div class="label">Completed</div></div>
+    <div class="stat"><div class="value">${done}/${total}</div><div class="label">Completed ${activeDay!=="trip"?"today":"this trip"}</div></div>
     <div class="stat"><div class="value">${open}</div><div class="label">Open now</div></div>
     <div class="stat"><div class="value">${avg} min</div><div class="label">Average wait</div></div>
     <div class="stat"><div class="value">${rides.filter(r=>r.park==="dlp").length} / ${rides.filter(r=>r.park==="daw").length}</div><div class="label">DLP / DAW</div></div>`;
@@ -168,10 +198,10 @@ function renderList(){
       <input class="checkbox" type="checkbox" ${isDone(r)?"checked":""} aria-label="Completed">
       <div class="ride-main">
         <div class="ride-name">${escapeHtml(r.name)}</div>
-        <div class="ride-land">${escapeHtml(r.land)} · ${PARKS[r.park].name}</div>
+        <div class="ride-land">${escapeHtml(r.land)} · ${PARKS[r.park].name} · ${r.category}</div>
       </div>
       <span class="park-badge">${r.park==="dlp"?"DLP":"DAW"}</span>
-      <div class="wait ${waitClass(r)}">${r.is_open ? `${r.wait_time}<small>MIN</small>` : "CLOSED"}</div>
+      <div class="wait ${waitClass(r)}">${r.category!=="attraction" ? "EVENT" : (r.noLiveData ? "—<small>NO LIVE DATA</small>" : (r.is_open ? `${r.wait_time}<small>MIN</small>` : "CLOSED"))}</div>
     </article>`).join("") || `<div class="ride-card">No attractions match your filters.</div>`;
   el.querySelectorAll(".ride-card").forEach(card=>{
     const r=rides.find(x=>x.key===card.dataset.key);
@@ -184,12 +214,13 @@ function renderChecklist(){
   const el=document.getElementById("checklist");
   const rows=filtered();
   const done=rides.filter(isDone).length;
-  document.getElementById("checklistSummary").textContent=`${done} of ${rides.length} completed • ${rides.length-done} remaining`;
+  document.getElementById("checklistSummary").textContent=`${done} of ${rides.length} completed • ${rides.length-done} remaining${activeDay!=="trip"?` • ${activeDay}`:""}`;
+  document.getElementById("checklistTitle").textContent=activeDay==="trip" ? "Your trip checklist" : `Checklist — ${new Date(activeDay+"T12:00:00").toLocaleDateString([], {weekday:"short",month:"short",day:"numeric"})}`;
   el.innerHTML=rows.map(r=>`
     <article class="check-item ${isDone(r)?"done":""}">
       <input class="checkbox" type="checkbox" ${isDone(r)?"checked":""} aria-label="Completed">
-      <div class="ride-main"><div class="ride-name">${escapeHtml(r.name)}</div><div class="ride-land">${escapeHtml(r.land)} · ${PARKS[r.park].name}</div></div>
-      <div class="wait ${waitClass(r)}">${r.is_open ? `${r.wait_time}<small>MIN</small>` : "CLOSED"}</div>
+      <div class="ride-main"><div class="ride-name">${escapeHtml(r.name)}</div><div class="ride-land">${escapeHtml(r.land)} · ${PARKS[r.park].name} · ${r.category}</div></div>
+      <div class="wait ${waitClass(r)}">${r.category!=="attraction" ? "EVENT" : (r.noLiveData ? "—<small>NO LIVE DATA</small>" : (r.is_open ? `${r.wait_time}<small>MIN</small>` : "CLOSED"))}</div>
     </article>`).join("") || `<div class="ride-card">No attractions match your filters.</div>`;
   el.querySelectorAll(".check-item").forEach(item=>{
     const name=item.querySelector(".ride-name").textContent;
@@ -209,11 +240,11 @@ function renderMap(){
     const color={green:"#16a34a",yellow:"#eab308",orange:"#f97316",red:"#dc2626",closed:"#64748b"}[cls];
     const icon=L.divIcon({
       className:"custom-pin",
-      html:`<div style="background:${color};width:34px;height:34px;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px #0004;display:grid;place-items:center;color:white;font-weight:900;font-size:10px">${r.is_open?r.wait_time:"×"}</div>`,
+      html:`<div style="background:${color};width:34px;height:34px;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px #0004;display:grid;place-items:center;color:white;font-weight:900;font-size:10px">${r.category!=="attraction"?"★":(r.noLiveData?"—":(r.is_open?r.wait_time:"×"))}</div>`,
       iconSize:[34,34],iconAnchor:[17,17]
     });
     const marker=L.marker([lat,lng],{icon}).addTo(map);
-    marker.bindPopup(`<div class="popup-title">${escapeHtml(r.name)}</div><div>${escapeHtml(PARKS[r.park].name)} · ${escapeHtml(r.land)}</div><div class="popup-wait">${r.is_open ? `${r.wait_time} min` : "Closed"}</div><button class="popup-btn" onclick="window.__toggleFromMap('${encodeURIComponent(r.key)}')">${isDone(r)?"✓ Completed":"Mark complete"}</button>`);
+    marker.bindPopup(`<div class="popup-title">${escapeHtml(r.name)}</div><div>${escapeHtml(PARKS[r.park].name)} · ${escapeHtml(r.land)}</div><div class="popup-wait">${r.category!=="attraction" ? r.category.toUpperCase() : (r.noLiveData ? "No live wait data" : (r.is_open ? `${r.wait_time} min` : "Closed"))}</div><button class="popup-btn" onclick="window.__toggleFromMap('${encodeURIComponent(r.key)}')">${isDone(r)?"✓ Completed":"Mark complete"}</button>`);
     markers.set(r.key,marker);
   });
   // Fit to whichever park is selected.
@@ -228,8 +259,15 @@ window.__toggleFromMap=function(encoded){
 
 function toggle(r){
   if(!r) return;
-  checked[r.key]=!checked[r.key]; save(); render();
-  toast(checked[r.key] ? `${r.name} completed ✓` : `${r.name} unchecked`);
+  if(activeDay === "trip") {
+    const next = !isDone(r);
+    checkedByDay["trip"] = checkedByDay["trip"] || {};
+    checkedByDay["trip"][r.key]=next;
+  } else {
+    dayStore()[r.key]=!dayStore()[r.key];
+  }
+  save(); render();
+  toast(isDone(r) ? `${r.name} completed ✓` : `${r.name} unchecked`);
 }
 
 function focusRide(r){
@@ -253,13 +291,17 @@ document.querySelectorAll(".tab").forEach(btn=>btn.addEventListener("click",()=>
   document.getElementById("mapView").classList.toggle("hidden",currentView!=="map");
   document.getElementById("listView").classList.toggle("hidden",currentView!=="list");
   document.getElementById("checklistView").classList.toggle("hidden",currentView!=="checklist");
+  document.getElementById("planView").classList.toggle("hidden",currentView!=="plan");
   if(currentView==="map") setTimeout(()=>map && map.invalidateSize(),50);
 }));
 
-["parkFilter","statusFilter","search"].forEach(id=>document.getElementById(id).addEventListener("input",render));
+["parkFilter","categoryFilter","statusFilter","search"].forEach(id=>document.getElementById(id).addEventListener("input",render));
 document.getElementById("refreshBtn").addEventListener("click",refresh);
 document.getElementById("resetBtn").addEventListener("click",()=>{
-  if(confirm("Reset all completed attractions on this device?")){checked={};save();render();toast("Checklist reset");}
+  if(confirm(`Reset completed items for ${activeDay === "trip" ? "the whole trip" : activeDay}?`)){
+    if(activeDay === "trip") checkedByDay={}; else checkedByDay[activeDay]={};
+    save(); render(); toast("Checklist reset");
+  }
 });
 
 refresh();
