@@ -1,58 +1,41 @@
-# DLP Live Ride Tracker
+# DLP Live Map v4
 
-A mobile-first Disneyland Paris checklist + live wait-time map.
+Mobile-first Disneyland Paris checklist + schematic map for Oct 16–18, 2026.
 
-## What it does
-- Live wait times for **Disneyland Park (Queue-Times park 4)** and **Disney Adventure World (Queue-Times park 28)**
-- Map view with color-coded live wait pins
-- List view sorted alphabetically
-- Checklist view with persistent completion checkmarks
-- Park, status, and search filters
-- Completion stored in browser localStorage
-- Auto-refresh every 5 minutes
-- Responsive/mobile-first UI
-- Queue-Times attribution as required by its API terms
+## What changed
+- Replaced Leaflet/OpenStreetMap with a lightweight, hard-coded SVG resort map.
+- Every attraction/experience is retained even when live wait data is missing.
+- The map marker itself acts as a completion checkbox: tap it to mark complete.
+- Completed markers turn green with a ✓.
+- Every land shows `completed / total` and a visual green completion overlay.
+- List and Checklist stay synchronized with the map.
+- Filters: day, park, experience type, live/completed/closed state, search.
+- Added current 2026 Disneyland Park + Disney Adventure World attraction catalog, including World of Frozen, Adventure Way and current closed items.
+- Added shows and character encounters as checklistable experiences.
+- Trip tab preserves the user's Oct 16–18 plan.
+- No Google Maps, Leaflet, OpenStreetMap tiles, or external map library.
 
-## Run it
-The simplest option is to host the folder as a static site.
+## Queue-Times.com wait feed
+Queue-Times.com has Disneyland Paris historical wait-time pages and a park-flow visualization. Its live page blocked automated access during development, and I could not verify a public API endpoint. Therefore this static GitHub Pages build does **not** pretend to scrape Queue-Times.com from the browser.
 
-### Local
-Because browsers can restrict cross-origin requests from `file://`, use a tiny local server:
+The app reads same-origin `waits.json` in this shape:
 
-Python:
-```bash
-python3 -m http.server 8080
+```json
+{
+  "source": "Queue-Times.com",
+  "updated": "2026-10-01T18:30:00Z",
+  "waits": {
+    "Big Thunder Mountain": {"wait": 45, "is_open": true},
+    "Peter Pan's Flight": {"wait": 55, "is_open": true},
+    "Crush's Coaster": {"is_open": false}
+  }
+}
 ```
 
-Then open:
-http://localhost:8080
+A small server-side/proxy job can populate `waits.json` from an authorized Queue-Times.com feed if/when you have access to one. Do not put private API credentials in this GitHub Pages repository.
 
-### Deploy
-This folder can be deployed directly to:
-- GitHub Pages
-- Netlify
-- Vercel static hosting
-- Cloudflare Pages
+## Deploy
+Replace the files in the existing `joshringler/DLPlivemap` GitHub repository with the contents of this folder. GitHub Pages will serve `index.html` automatically.
 
-No build step is required.
-
-## Live data
-The app uses:
-- https://queue-times.com/parks/4/queue_times.json
-- https://queue-times.com/parks/28/queue_times.json
-
-Queue-Times states that its real-time API is updated every 5 minutes and requires prominent "Powered by Queue-Times.com" attribution.
-
-## Important production note
-The map coordinates are a curated/approximate coordinate layer so that every live attraction can be shown on the map. Queue-Times' live API provides the ride status/wait information but its documented queue-time response does not provide a coordinate for each ride.
-
-If you want a production-grade version, replace `COORDS` / `LAND_FALLBACK` in `app.js` with a maintained attraction-coordinate dataset or a first-party/licensed map data source.
-
-## Suggested next upgrades
-1. Add "My Trip" dates and separate checklists for each day.
-2. Add wait-time history sparklines.
-3. Add "under X minutes" quick filter.
-4. Add walking-route links.
-5. Add a "next best ride" recommendation based only on the user's selected checklist and current wait.
-6. Add PWA/offline shell and install-to-home-screen support.
-7. Add optional cloud sync/login.
+## Current official attraction catalog
+The catalog was cross-checked against Disneyland Paris's current attractions page during development. The official site currently lists 50 attraction entries, with some separately marked closed, and identifies Disney Adventure World as the second park following the 2026 transformation.
