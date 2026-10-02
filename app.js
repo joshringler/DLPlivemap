@@ -1,4 +1,3 @@
-const DAYS=["2026-10-16","2026-10-17","2026-10-18"];
 const PARK={dlp:"Disneyland Park",daw:"Disney Adventure World"};
 const LAND_ORDER={dlp:["Main Street U.S.A.","Adventureland","Frontierland","Fantasyland","Discoveryland"],daw:["World Premiere Plaza","Adventure Way","Worlds of Pixar","Avengers Campus","World of Frozen"]};
 const CATALOG=[
@@ -19,69 +18,116 @@ const CATALOG=[
 ].map((x,i)=>({id:`${x[0]}-${x[1]}-${i}`,park:x[0],category:x[1],land:x[2],name:x[3]}));
 const CLOSED=["Crush's Coaster","La Galerie de la Belle au Bois Dormant","Mad Hatter's Tea Cups","Pirate Galleon","Pirates' Beach"]; // current official page status at build time; update if DLP changes
 const ALIASES={"Avengers Assemble: Flight Force":["Flight Force"],"Spider-Man W.E.B. Adventure":["Spider-Man W.E.B. Adventure","Spider-Man W.E.B. Adventure*"],"The Twilight Zone Tower of Terror":["The Twilight Zone Tower of Terror™","Tower of Terror"],"Ratatouille : L’Aventure Totalement Toquée de Rémy":["Ratatouille: The Adventure"],"Star Wars Hyperspace Mountain":["Star Wars Hyperspace Mountain","Hyperspace Mountain"],"it's a small world":["\"it's a small world\""],"Slinky® Dog Zigzag Spin":["Slinky Dog Zigzag Spin"],"The Lion King: Rhythms of the Pride Lands":["The Lion King: Rhythms of the Pride Lands"]};
-const STORE="dlp_map_checked_v4";let checked=JSON.parse(localStorage.getItem(STORE)||"{}");let activeDay=localStorage.getItem("dlp_map_day")||"trip";let waits={};let dataUpdated=null;let view="map";
+const STORE="dlp_map_checked_v5";let checked=JSON.parse(localStorage.getItem(STORE)||"{}");let waits={};let dataUpdated=null;let view="map";let zoom=1;let panX=0;let panY=0;let drag=null;
 function norm(s){return String(s||"").toLowerCase().replace(/[™®’'“”\".:,!?–—-]/g," ").replace(/\s+/g," ").trim()}
-function isDone(r){if(activeDay==="trip")return DAYS.some(d=>!!checked[d]?.[r.id]);return !!checked[activeDay]?.[r.id]}
-function save(){localStorage.setItem(STORE,JSON.stringify(checked));localStorage.setItem("dlp_map_day",activeDay)}
-function toggle(r){if(!checked[activeDay])checked[activeDay]={};if(activeDay==="trip"){DAYS.forEach(d=>{if(!checked[d])checked[d]={};checked[d][r.id]=!isDone(r)});}else checked[activeDay][r.id]=!checked[activeDay][r.id];save();renderAll();toast(isDone(r)?"Marked complete ✓":"Marked incomplete")}
+function isDone(r){return !!checked[r.id]}
+function save(){localStorage.setItem(STORE,JSON.stringify(checked))}
+function toggle(r){checked[r.id]=!checked[r.id];save();renderAll();toast(isDone(r)?"Marked complete ✓":"Marked incomplete")}
 function waitFor(r){const candidates=[r.name,...(ALIASES[r.name]||[])].map(norm);const key=Object.keys(waits).find(k=>candidates.some(c=>norm(k)===c||norm(k).includes(c)||c.includes(norm(k))));return key?waits[key]:null}
 function status(r){if(r.category!=="attraction")return "event";if(CLOSED.includes(r.name))return "closed";const w=waitFor(r);if(!w)return "nodata";if(w.closed===true||w.is_open===false)return "closed";const n=Number(w.wait??w.wait_time);if(!Number.isFinite(n))return "nodata";return n<=20?"green":n<=45?"yellow":n<=70?"orange":"red"}
 function waitText(r){if(r.category!=="attraction")return "EVENT";const s=status(r);if(s==="closed")return "CLOSED";const w=waitFor(r);if(!w)return "—";const n=Number(w.wait??w.wait_time);return Number.isFinite(n)?`${n}m`:"—"}
 function filtered(){const p=document.getElementById("park").value,t=document.getElementById("type").value,s=document.getElementById("state").value,q=norm(document.getElementById("search").value);return CATALOG.filter(r=>(p==="all"||r.park===p)&&(t==="all"||r.category===t)&&(!q||norm(r.name).includes(q)||norm(r.land).includes(q)||norm(r.category).includes(q))).filter(r=>{if(s==="done")return isDone(r);if(s==="todo")return !isDone(r);if(s==="closed")return status(r)==="closed";if(s==="live")return ["green","yellow","orange","red"].includes(status(r));return true})}
 const svg=document.getElementById("map");
-// Original lightweight vector layout, drawn from Disneyland Paris' published park-map geography.
-// It is intentionally an original schematic rather than a copied Disney map image.
-const LAYOUT={dlp:{x:20,y:20,w:590,h:720},daw:{x:650,y:20,w:530,h:720}};
-const LANDS={
-"dlp|Main Street U.S.A.":{x:235,y:500,w:160,h:205,fill:"#f0e1d8",shape:"main"},
-"dlp|Frontierland":{x:45,y:100,w:195,h:210,fill:"#ead6b8",shape:"round"},
-"dlp|Adventureland":{x:40,y:315,w:205,h:235,fill:"#cfe2c8",shape:"round"},
-"dlp|Fantasyland":{x:370,y:80,w:205,h:260,fill:"#d9e7f4",shape:"round"},
-"dlp|Discoveryland":{x:385,y:355,w:190,h:175,fill:"#d7e0e4",shape:"round"},
-"dlp|Entertainment":{x:255,y:355,w:120,h:90,fill:"#efe6c9",shape:"round"},
-"dlp|Character Encounters":{x:415,y:535,w:145,h:75,fill:"#f0d8e4",shape:"round"},
-"daw|Front Lot":{x:680,y:610,w:470,h:105,fill:"#eadfd7",shape:"round"},
-"daw|World Premiere Plaza":{x:770,y:505,w:290,h:110,fill:"#eee0e8",shape:"round"},
-"daw|Adventure Way":{x:885,y:285,w:95,h:225,fill:"#e5e5c8",shape:"way"},
-"daw|Worlds of Pixar":{x:680,y:250,w:195,h:245,fill:"#f0d8bf",shape:"round"},
-"daw|Avengers Campus":{x:995,y:245,w:175,h:250,fill:"#d9deea",shape:"round"},
-"daw|World of Frozen":{x:875,y:75,w:285,h:180,fill:"#cde7ed",shape:"round"},
-"daw|Entertainment":{x:785,y:365,w:95,h:100,fill:"#efe6c9",shape:"round"},
-"daw|Character Encounters":{x:995,y:505,w:150,h:75,fill:"#f0d8e4",shape:"round"}
+const mapViewport=document.getElementById("mapViewport");
+const mapStage=document.getElementById("mapStage");
+const zoomLabel=document.getElementById("zoomLabel");
+
+// Interactive marker zones are aligned to the original illustrated resort artwork.
+// The artwork remains the visual map; the SVG layer supplies live status and completion controls.
+const MAP_ZONES={
+ "dlp|Main Street U.S.A.":{x:320,y:470,w:280,h:330},
+ "dlp|Adventureland":{x:70,y:230,w:280,h:250},
+ "dlp|Frontierland":{x:40,y:500,w:300,h:245},
+ "dlp|Fantasyland":{x:220,y:95,w:340,h:340},
+ "dlp|Discoveryland":{x:500,y:245,w:255,h:300},
+ "daw|World Premiere Plaza":{x:780,y:120,w:330,h:250},
+ "daw|Adventure Way":{x:650,y:590,w:330,h:250},
+ "daw|Worlds of Pixar":{x:1230,y:390,w:270,h:330},
+ "daw|Avengers Campus":{x:900,y:600,w:350,h:280},
+ "daw|World of Frozen":{x:1180,y:75,w:310,h:285},
+ "dlp|Entertainment":{x:335,y:355,w:180,h:130},
+ "dlp|Character Encounters":{x:250,y:290,w:320,h:300},
+ "daw|Entertainment":{x:780,y:340,w:390,h:260},
+ "daw|Character Encounters":{x:900,y:330,w:450,h:360}
 };
-const SHAPES={
- round:l=>`<rect class="land" x="${l.x}" y="${l.y}" width="${l.w}" height="${l.h}" rx="34" fill="${l.fill}"/>`,
- main:l=>`<path class="land" fill="${l.fill}" d="M${l.x+20} ${l.y} H${l.x+l.w-20} Q${l.x+l.w} ${l.y} ${l.x+l.w} ${l.y+20} V${l.y+l.h-20} Q${l.x+l.w} ${l.y+l.h} ${l.x+l.w-20} ${l.y+l.h} H${l.x+20} Q${l.x} ${l.y+l.h} ${l.x} ${l.y+l.h-20} V${l.y+20} Q${l.x} ${l.y} ${l.x+20} ${l.y}Z"/>`,
- way:l=>`<path class="land" fill="${l.fill}" d="M${l.x+25} ${l.y} Q${l.x+l.w/2} ${l.y-18} ${l.x+l.w-25} ${l.y} L${l.x+l.w} ${l.y+l.h-20} Q${l.x+l.w/2} ${l.y+l.h+18} ${l.x} ${l.y+l.h-20}Z"/>`
-};
-function parkShape(p){const a=LAYOUT[p], title=PARK[p];let out=`<rect class="park" x="${a.x}" y="${a.y}" width="${a.w}" height="${a.h}" rx="42"/><text class="park-label" x="${a.x+22}" y="${a.y+34}">${title}</text>`;
- if(p==='dlp'){
-   out+=`<path class="path" d="M70 465 C160 420 220 410 300 405 C380 400 455 420 535 465"/><path class="path" d="M315 700 V465"/><circle class="hub" cx="315" cy="405" r="78"/><path class="water" d="M275 335 C305 315 360 318 392 342 C410 356 414 378 400 394 C375 420 340 424 305 415 C270 405 255 375 275 335Z"/><path class="castle" d="M300 390 l15 -35 15 35 10 -28 12 28 16 -12 -5 35 h-78 l-5 -35 16 12Z"/><text class="hub-label" x="315" y="438" text-anchor="middle">Central Plaza</text>`;
- } else {
-   out+=`<path class="water" d="M750 365 C790 325 840 300 890 315 C925 325 945 365 978 380 C1015 398 1070 370 1120 390 C1160 406 1170 455 1140 478 C1100 510 1055 495 1010 485 C960 474 930 500 880 490 C825 480 800 440 760 430 C720 420 710 395 750 365Z"/><path class="path" d="M700 645 C780 590 835 545 900 505 C940 480 995 475 1060 500 C1110 520 1145 570 1145 625"/><path class="path" d="M930 620 V285"/><text class="hub-label" x="1010" y="425" text-anchor="middle">Adventure Bay</text>`;
- }
- return out+`<text class="map-note" x="${a.x+a.w-20}" y="${a.y+a.h-16}" text-anchor="end">schematic • not to scale</text>`;
-}
+
 function landProgress(park,land){const rs=CATALOG.filter(r=>r.park===park&&r.land===land);const d=rs.filter(isDone).length;return [d,rs.length]}
-function markerPos(r,index){const l=LANDS[`${r.park}|${r.land}`];if(!l)return [50,50];const rs=CATALOG.filter(x=>x.park===r.park&&x.land===r.land);const i=rs.findIndex(x=>x.id===r.id);const cols=l.w<120?2:l.w<180?2:3;const rows=Math.ceil(rs.length/cols);const padX=Math.max(16,l.w/(cols+1));const usableH=Math.max(34,l.h-52);const cellH=Math.max(31,usableH/(rows+1));return [l.x+padX*((i%cols)+1),l.y+43+cellH*(Math.floor(i/cols)+1)]}
-function renderMap(){let out=parkShape("dlp")+parkShape("daw");Object.entries(LANDS).forEach(([k,l])=>{const [p,land]=k.split("|"),[d,total]=landProgress(p,land),pct=total?Math.round(d/total*100):0;const shape=SHAPES[l.shape](l);out+=`<g class="land-group">${shape}<rect class="land-progress" x="${l.x}" y="${l.y+l.h*(1-pct/100)}" width="${l.w}" height="${Math.max(0,l.h*pct/100)}" rx="28" opacity="${pct?0.18:0}"/><text class="land-label" x="${l.x+12}" y="${l.y+22}">${esc(land)}</text><text class="land-count" x="${l.x+12}" y="${l.y+39}">${d}/${total} • ${pct}%</text></g>`});
- filtered().forEach(r=>{const [x,y]=markerPos(r),s=status(r),done=isDone(r),wt=waitText(r),cls=done?"done":s==="nodata"?"no-data":s==="closed"?"closed":s==="event"?"event":"live-"+s;const glyph=done?"✓":r.category==="show"?"S":r.category==="character"?"C":wt==="—"?"—":wt.replace("m","");out+=`<g class="marker ${cls}" data-id="${r.id}" transform="translate(${x} ${y})" tabindex="0" role="button" aria-label="${esc(r.name)} — ${esc(wt)}"><circle class="hit" r="20"/><rect class="box" x="-14" y="-14" width="28" height="28" rx="7"/><text class="glyph">${glyph}</text><text class="marker-label" y="23">${esc(short(r.name))}</text></g>`});
- svg.innerHTML=out;svg.querySelectorAll(".marker").forEach(g=>{g.addEventListener("click",()=>openDrawer(g.dataset.id));g.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();openDrawer(g.dataset.id)}})})}
-function short(s){const words=s.replace(/[™®]/g,"").split(" ");return words.length>3?words.slice(0,3).join(" ")+"…":s}
-function esc(s){return String(s).replace(/[&<>\"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function markerPos(r){
+  const z=MAP_ZONES[`${r.park}|${r.land}`]||{x:50,y:50,w:100,h:100};
+  const rs=CATALOG.filter(x=>x.park===r.park&&x.land===r.land);
+  const i=rs.findIndex(x=>x.id===r.id);
+  const cols=z.w>300?3:2, row=Math.floor(i/cols), col=i%cols;
+  const rows=Math.max(1,Math.ceil(rs.length/cols));
+  const px=z.x+30+(z.w-60)*(col/(Math.max(1,cols-1)));
+  const py=z.y+38+(z.h-65)*(row/Math.max(1,rows-1));
+  return [px,py];
+}
+function landChip(park,land){
+  const z=MAP_ZONES[`${park}|${land}`]; if(!z)return '';
+  const [d,total]=landProgress(park,land),pct=total?Math.round(d/total*100):0;
+  return `<g class="land-chip" transform="translate(${z.x+8} ${z.y+8})"><rect width="${Math.min(150,z.w-16)}" height="27" rx="13"/><text x="11" y="18">${esc(land)}</text><text class="chip-count" x="${Math.min(142,z.w-24)}" y="18" text-anchor="end">${d}/${total}</text></g>`;
+}
+function renderMap(){
+  let out='';
+  LAND_ORDER.dlp.concat(LAND_ORDER.daw).forEach((land)=>{const p=LAND_ORDER.dlp.includes(land)?'dlp':'daw';out+=landChip(p,land)});
+  filtered().forEach(r=>{
+    const [x,y]=markerPos(r),s=status(r),done=isDone(r),wt=waitText(r);
+    const cls=done?'done':s==='nodata'?'no-data':s==='closed'?'closed':s==='event'?'event':'live-'+s;
+    const glyph=done?'✓':r.category==='show'?'S':r.category==='character'?'C':wt==='—'?'•':wt.replace('m','');
+    out+=`<g class="marker ${cls}" data-id="${r.id}" transform="translate(${x} ${y})" tabindex="0" role="button" aria-label="${esc(r.name)} — ${esc(wt)}"><circle class="hit" r="25"/><rect class="box" x="-18" y="-18" width="36" height="36" rx="10"/><text class="glyph">${glyph}</text><circle class="check-ring" r="21"/></g>`;
+  });
+  svg.innerHTML=out;
+  svg.querySelectorAll('.marker').forEach(g=>{g.addEventListener('click',()=>openDrawer(g.dataset.id));g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openDrawer(g.dataset.id)}})});
+}
+function short(s){const words=s.replace(/[™®]/g,'').split(' ');return words.length>3?words.slice(0,3).join(' ')+'…':s}
+function esc(s){return String(s).replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\\':'&#92;'}[c]))}
 function renderList(){const el=document.getElementById("list");el.innerHTML=filtered().map(r=>`<article class="list-card" data-id="${r.id}"><input class="cb" type="checkbox" ${isDone(r)?"checked":""}><div class="main"><div class="name">${esc(r.name)}</div><div class="sub">${PARK[r.park]} • ${esc(r.land)} • ${r.category}</div></div><span class="wait ${status(r)}">${waitText(r)}${r.category==="attraction"&&waitFor(r)?"<small>LIVE</small>":""}</span></article>`).join("")||"<div class='list-card'>Nothing matches.</div>";el.querySelectorAll(".list-card").forEach(c=>{const r=CATALOG.find(x=>x.id===c.dataset.id);c.querySelector(".cb").addEventListener("click",e=>{e.stopPropagation();toggle(r)});c.addEventListener("click",e=>{if(!e.target.classList.contains("cb"))openDrawer(r.id)})})}
 function renderChecklist(){const el=document.getElementById("checklist"),rows=filtered(),done=CATALOG.filter(isDone).length;document.getElementById("summary").textContent=`${done} of ${CATALOG.length} experiences completed • ${CATALOG.length-done} remaining`;el.innerHTML=rows.map(r=>`<article class="check-card"><input class="cb" data-id="${r.id}" type="checkbox" ${isDone(r)?"checked":""}><div class="main"><div class="name">${esc(r.name)}</div><div class="sub">${PARK[r.park]} • ${esc(r.land)} • ${r.category}</div></div><span class="wait ${status(r)}">${waitText(r)}</span></article>`).join("");el.querySelectorAll(".cb").forEach(cb=>cb.addEventListener("change",()=>toggle(CATALOG.find(r=>r.id===cb.dataset.id))))}
 function renderStats(){const all=CATALOG.length,done=CATALOG.filter(isDone).length,live=CATALOG.filter(r=>["green","yellow","orange","red"].includes(status(r))).length,closed=CATALOG.filter(r=>status(r)==="closed").length;document.getElementById("stats").innerHTML=[[all,"experiences"],[done,"completed"],[live,"live waits"],[closed,"currently closed"]].map(x=>`<div class="stat"><b>${x[0]}</b><small>${x[1]}</small></div>`).join("")}
-function renderAll(){renderStats();if(view==="map")renderMap();if(view==="list")renderList();if(view==="checklist")renderChecklist();document.querySelectorAll(".tabs button").forEach(b=>b.classList.toggle("active",b.dataset.view===view));["map","list","checklist","trip"].forEach(v=>document.getElementById(v+"View").classList.toggle("hidden",view!==v))}
+function renderAll(){renderStats();if(view==="map")renderMap();if(view==="list")renderList();if(view==="checklist")renderChecklist();document.querySelectorAll(".tabs button").forEach(b=>b.classList.toggle("active",b.dataset.view===view));["map","list","checklist"].forEach(v=>document.getElementById(v+"View").classList.toggle("hidden",view!==v));applyMapTransform()}
 function openDrawer(id){const r=CATALOG.find(x=>x.id===id);if(!r)return;const s=status(r);document.getElementById("drawerBody").innerHTML=`<h2>${esc(r.name)}</h2><div class="meta">${PARK[r.park]} • ${esc(r.land)} • ${r.category}</div><div class="big ${s}">${esc(waitText(r))}</div><button class="complete" id="drawerComplete">${isDone(r)?"✓ Completed — tap to undo":"Mark complete"}</button>`;document.getElementById("drawer").classList.remove("hidden");document.getElementById("drawerComplete").onclick=()=>{toggle(r);openDrawer(r.id)}}
 document.getElementById("close").onclick=()=>document.getElementById("drawer").classList.add("hidden");
 function toast(t){const x=document.getElementById("toast");x.textContent=t;x.classList.add("show");setTimeout(()=>x.classList.remove("show"),1200)}
 function applyFilters(){renderAll()}
-["day","park","type","state","search"].forEach(id=>document.getElementById(id).addEventListener(id==="search"?"input":"change",()=>{if(id==="day"){activeDay=document.getElementById("day").value;save()}applyFilters()}));
+["park","type","state","search"].forEach(id=>document.getElementById(id).addEventListener(id==="search"?"input":"change",applyFilters));
 document.querySelectorAll(".tabs button").forEach(b=>b.addEventListener("click",()=>{view=b.dataset.view;renderAll()}));
-document.getElementById("reset").onclick=()=>{if(confirm("Reset completion for this selected day/view?")){if(activeDay==="trip")checked={};else checked[activeDay]={};save();renderAll()}};
+document.getElementById("reset").onclick=()=>{if(confirm("Reset all completed attractions and experiences on this device?")){checked={};save();renderAll()}};
 document.getElementById("refresh").onclick=loadWaits;
 async function loadWaits(){document.getElementById("updated").textContent="Refreshing…";try{const urls=["https://queue-times.com/parks/4/queue_times.json?ts="+Date.now(),"https://queue-times.com/parks/28/queue_times.json?ts="+Date.now()];const rs=await Promise.all(urls.map(u=>fetch(u,{cache:"no-store"})));if(rs.some(r=>!r.ok))throw new Error("Queue-Times request failed");const js=await Promise.all(rs.map(r=>r.json()));waits={};js.forEach(j=>(j.lands||[]).forEach(l=>(l.rides||[]).forEach(x=>{waits[x.name]={wait:x.wait_time,is_open:x.is_open,closed:x.is_open===false,last_updated:x.last_updated}})));dataUpdated=js.flatMap(j=>(j.lands||[]).flatMap(l=>(l.rides||[]).map(x=>x.last_updated).filter(Boolean))).sort().pop()||new Date().toISOString();document.getElementById("source").innerHTML='Wait source: <a href="https://queue-times.com/" target="_blank" rel="noopener">Queue-Times.com</a>';document.getElementById("updated").textContent="Updated "+new Date(dataUpdated).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"});renderAll();document.getElementById("progress").style.animation="none";void document.getElementById("progress").offsetWidth;document.getElementById("progress").style.animation="shrink 300s linear forwards"}catch(e){document.getElementById("updated").textContent="Live wait feed unavailable";document.getElementById("source").innerHTML='Wait source: <a href="https://queue-times.com/" target="_blank" rel="noopener">Queue-Times.com</a> • checklist still works';renderAll()}}
-// Keep the map lightweight: no Google Maps, Leaflet, tiles, or external JS libraries.
-if(DAYS.includes(activeDay))document.getElementById("day").value=activeDay;else document.getElementById("day").value="trip";
+function clamp(v,min,max){return Math.max(min,Math.min(max,v))}
+function applyMapTransform(){
+  if(!mapStage||!mapViewport)return;
+  const vw=mapViewport.clientWidth, vh=mapViewport.clientHeight;
+  const sw=vw*zoom, sh=vw*(1024/1536)*zoom;
+  const minX=Math.min(0,vw-sw), minY=Math.min(0,vh-sh);
+  panX=clamp(panX,minX,0); panY=clamp(panY,minY,0);
+  mapStage.style.transform=`translate3d(${panX}px,${panY}px,0) scale(${zoom})`;
+  if(zoomLabel)zoomLabel.textContent=`${Math.round(zoom*100)}%`;
+  const reset=document.getElementById("zoomReset"); if(reset)reset.textContent=`${Math.round(zoom*100)}%`;
+}
+function setZoom(next,cx=null,cy=null){
+  if(!mapViewport)return;
+  const old=zoom; zoom=clamp(next,1,3);
+  if(cx!==null&&cy!==null&&old!==zoom){panX=cx-(cx-panX)*(zoom/old);panY=cy-(cy-panY)*(zoom/old)}
+  applyMapTransform();
+}
+function focusMap(kind){
+  const targets={resort:[768,512,1],dlp:[400,470,1.75],daw:[1120,470,1.75]};
+  const [tx,ty,z]=targets[kind]||targets.resort;
+  zoom=z;
+  const vw=mapViewport.clientWidth,vh=mapViewport.clientHeight;
+  panX=vw/2-(tx/1536*vw)*zoom; panY=vh/2-(ty/1024*(vw*1024/1536))*zoom;
+  applyMapTransform();
+  document.querySelectorAll(".map-focus").forEach(b=>b.classList.toggle("active",b.dataset.focus===kind));
+}
+document.getElementById("zoomIn").onclick=()=>setZoom(zoom+.25,mapViewport.clientWidth/2,mapViewport.clientHeight/2);
+document.getElementById("zoomOut").onclick=()=>setZoom(zoom-.25,mapViewport.clientWidth/2,mapViewport.clientHeight/2);
+document.getElementById("zoomReset").onclick=()=>focusMap("resort");
+document.querySelectorAll(".map-focus").forEach(b=>b.addEventListener("click",()=>focusMap(b.dataset.focus)));
+mapViewport.addEventListener("wheel",e=>{e.preventDefault();const r=mapViewport.getBoundingClientRect();setZoom(zoom+(e.deltaY<0?.2:-.2),e.clientX-r.left,e.clientY-r.top)},{passive:false});
+mapViewport.addEventListener("pointerdown",e=>{if(e.pointerType==="mouse"&&e.button!==0)return;drag={id:e.pointerId,x:e.clientX,y:e.clientY,px:panX,py:panY};mapViewport.setPointerCapture(e.pointerId)});
+mapViewport.addEventListener("pointermove",e=>{if(!drag||drag.id!==e.pointerId)return;panX=drag.px+e.clientX-drag.x;panY=drag.py+e.clientY-drag.y;applyMapTransform()});
+mapViewport.addEventListener("pointerup",e=>{if(drag?.id===e.pointerId)drag=null});
+mapViewport.addEventListener("pointercancel",()=>drag=null);
+window.addEventListener("resize",()=>applyMapTransform());
 loadWaits();setInterval(loadWaits,300000);renderAll();

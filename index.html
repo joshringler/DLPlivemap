@@ -6,20 +6,35 @@
 <title>DLP Live Map</title><link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<header class="topbar"><div><div class="eyebrow">DISNEYLAND PARIS • OCT 16–18, 2026</div><h1>DLP Live Map</h1></div><button id="refresh" class="icon">↻</button></header>
+<header class="topbar"><div><div class="eyebrow">DISNEYLAND PARIS • LIVE PARK GUIDE</div><h1>DLP Live Map</h1></div><button id="refresh" class="icon" aria-label="Refresh wait times">↻</button></header>
 <section class="status"><div><b id="updated">Loading…</b><span id="source">Wait source: Queue-Times.com</span></div><div class="progress"><i id="progress"></i></div></section>
 <main>
 <section id="stats" class="stats"></section>
 <section class="controls">
- <nav class="tabs"><button class="active" data-view="map">Map</button><button data-view="list">List</button><button data-view="checklist">Checklist</button><button data-view="trip">Trip</button></nav>
- <div class="filters"><select id="day"><option value="trip">Trip progress</option><option value="2026-10-16">Fri Oct 16</option><option value="2026-10-17">Sat Oct 17</option><option value="2026-10-18">Sun Oct 18</option></select><select id="park"><option value="all">Both parks</option><option value="dlp">Disneyland Park</option><option value="daw">Disney Adventure World</option></select><select id="type"><option value="all">Everything</option><option value="attraction">Attractions</option><option value="show">Shows</option><option value="character">Characters</option></select><select id="state"><option value="all">All status</option><option value="live">Live wait</option><option value="done">Completed</option><option value="todo">Not completed</option><option value="closed">Closed</option></select><input id="search" placeholder="Search…" autocomplete="off"></div>
+ <nav class="tabs"><button class="active" data-view="map">Map</button><button data-view="list">List</button><button data-view="checklist">Checklist</button></nav>
+ <div class="filters"><select id="park"><option value="all">Both parks</option><option value="dlp">Disneyland Park</option><option value="daw">Disney Adventure World</option></select><select id="type"><option value="all">Everything</option><option value="attraction">Attractions</option><option value="show">Shows</option><option value="character">Characters</option></select><select id="state"><option value="all">All status</option><option value="live">Live wait</option><option value="done">Completed</option><option value="todo">Not completed</option><option value="closed">Closed</option></select><input id="search" placeholder="Search…" autocomplete="off"></div>
 </section>
-<section id="mapView" class="view"><div class="map-wrap"><svg id="map" viewBox="0 0 1200 760" role="img" aria-label="Disneyland Paris resort map based on the published park geography; schematic and not to scale"></svg><div class="map-hint">Tap any <b>checkbox/marker</b> to complete it. Land badges show completion. Map geography is based on Disneyland Paris published maps; artwork is an original lightweight schematic.</div></div><div class="legend"><span><i class="g"></i> ≤20</span><span><i class="y"></i> 21–45</span><span><i class="o"></i> 46–70</span><span><i class="r"></i> 71+</span><span><i class="x"></i> closed</span><span><i class="n"></i> no wait data</span></div></section>
+<section id="mapView" class="view">
+  <div class="map-wrap">
+    <div class="map-toolbar" aria-label="Map controls">
+      <div class="map-park-buttons"><button class="map-focus active" data-focus="resort">Resort</button><button class="map-focus" data-focus="dlp">Disneyland Park</button><button class="map-focus" data-focus="daw">Adventure World</button></div>
+      <div class="map-zoom-buttons"><button id="zoomOut" aria-label="Zoom out">−</button><button id="zoomReset" aria-label="Reset map zoom">1×</button><button id="zoomIn" aria-label="Zoom in">+</button></div>
+    </div>
+    <div class="map-viewport" id="mapViewport">
+      <div class="map-stage" id="mapStage">
+        <img src="resort-map.png" alt="Detailed illustrated overview of Disneyland Park and Disney Adventure World at Disneyland Paris">
+        <svg id="map" viewBox="0 0 1536 1024" aria-label="Interactive Disneyland Paris illustrated map overlay"></svg>
+      </div>
+      <div class="map-scale"><span id="zoomLabel">100%</span> • Drag to pan • Scroll or +/− to zoom</div>
+    </div>
+    <div class="map-hint"><b>☑ Tap a marker to check it off.</b> Green markers are completed. Zoom in for a closer look at each land.</div>
+  </div>
+  <div class="legend"><span><i class="g"></i> ≤20 min</span><span><i class="y"></i> 21–45</span><span><i class="o"></i> 46–70</span><span><i class="r"></i> 71+</span><span><i class="x"></i> closed</span><span><i class="n"></i> no live data</span></div>
+</section>
 <section id="listView" class="view hidden"><div id="list"></div></section>
 <section id="checklistView" class="view hidden"><div class="head"><div><h2>Your checklist</h2><p id="summary"></p></div><button id="reset" class="secondary">Reset</button></div><div id="checklist"></div></section>
-<section id="tripView" class="view hidden"><div class="head"><div><h2>Oct 16–18</h2><p>Your current trip structure</p></div></div><div class="days"><article><b>Fri Oct 16</b><em>DLP priority</em><ul><li>Extra Magic Time at Disneyland Park</li><li>Disneyland Park focus</li><li><strong>6:00 PM — PYM Kitchen</strong></li><li>Evening entertainment as scheduled</li></ul></article><article><b>Sat Oct 17</b><em>Premier Access Ultimate</em><ul><li>Both parks</li><li>Goal: every available attraction once</li><li>Fit shows/characters around the ride loop</li><li>Evening lake/nighttime entertainment</li></ul></article><article><b>Sun Oct 18</b><em>Rerides</em><ul><li>Spider-Man W.E.B. Adventure</li><li>Big Thunder Mountain</li><li>Avengers Assemble: Flight Force</li><li>Star Wars Hyperspace Mountain</li><li>Indiana Jones</li><li>Buzz Lightyear Laser Blast</li><li>Phantom Manor</li><li><strong>1:30 PM — Walt’s</strong></li></ul></article></div></section>
 </main>
-<footer><b>Wait data:</b> <a href="https://queue-times.com/" target="_blank" rel="noopener">Powered by Queue-Times.com</a> • <span>Attractions never disappear when wait data is missing. Progress is saved on this device. Map geography: <a href="https://www.disneylandparis.com/en-int/faq/theme-parks/maps" target="_blank" rel="noopener">Disneyland Paris official map</a>.</span></footer>
-<div id="drawer" class="drawer hidden"><button id="close" class="close">×</button><div id="drawerBody"></div></div><div id="toast" class="toast"></div>
+<footer><b>Wait data:</b> <a href="https://queue-times.com/" target="_blank" rel="noopener">Powered by Queue-Times.com</a> • <span>Attractions never disappear when wait data is missing. Progress is saved on this device. Map geography is based on Disneyland Paris published maps; the illustrated artwork is original.</span></footer>
+<div id="drawer" class="drawer hidden"><button id="close" class="close" aria-label="Close">×</button><div id="drawerBody"></div></div><div id="toast" class="toast"></div>
 <script src="app.js"></script>
 </body></html>

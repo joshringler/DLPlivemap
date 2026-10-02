@@ -23,3 +23,38 @@
 #map .marker.done .box{fill:#17883f}.marker.no-data .box,.marker.event .box{fill:#7b8790}.marker.closed .box{fill:#555}
 #map .marker:focus .box,#map .marker:hover .box{stroke:#111827;stroke-width:4}
 .map-hint{padding:8px 6px 2px;font-size:12px;color:#5e6962}
+/* Illustrated map layer */
+.map-wrap{background:#dfe7dd;border:1px solid #ccd5cc;border-radius:20px;overflow:hidden}
+.picture-map{position:relative;width:100%;line-height:0;background:#dfe7dd;overflow:hidden}
+.picture-map img{display:block;width:100%;height:auto;user-select:none;-webkit-user-drag:none}
+#map{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:pan-y;user-select:none}
+#map .marker{cursor:pointer;outline:none}
+#map .marker .hit{fill:transparent;stroke:none}
+#map .marker .box{stroke:#fff;stroke-width:4;filter:drop-shadow(0 2px 3px rgba(0,0,0,.32))}
+#map .marker .glyph{font:900 12px system-ui,sans-serif;text-anchor:middle;dominant-baseline:central;fill:#fff;pointer-events:none}
+#map .marker .check-ring{fill:none;stroke:rgba(255,255,255,.9);stroke-width:2;pointer-events:none}
+#map .marker.live-green .box{fill:#179447}.marker.live-yellow .box{fill:#d5a000}.marker.live-orange .box{fill:#e07420}.marker.live-red .box{fill:#c53d3d}
+#map .marker.done .box{fill:#0b8a45}.marker.done .check-ring{stroke:#d9ffe8;stroke-width:3}
+#map .marker.no-data .box,#map .marker.event .box{fill:#6f7b83}.marker.closed .box{fill:#505b63}
+#map .marker:focus .box,#map .marker:hover .box{stroke:#111827;stroke-width:5}
+#map .land-chip rect{fill:rgba(255,255,255,.88);stroke:rgba(30,40,35,.16);stroke-width:1;filter:drop-shadow(0 2px 3px rgba(0,0,0,.18))}
+#map .land-chip text{font:800 10px system-ui,sans-serif;fill:#26332c;dominant-baseline:middle}
+#map .land-chip .chip-count{font-weight:950;fill:#168044}
+.map-hint{left:10px;bottom:10px;max-width:calc(100% - 20px);background:rgba(255,255,255,.94);border:1px solid rgba(0,0,0,.12);padding:8px 10px;border-radius:10px;font-size:10px;box-shadow:0 3px 12px rgba(0,0,0,.15)}
+@media(max-width:760px){.picture-map{border-radius:14px}.map-hint{font-size:9px}.map-wrap{border-radius:14px}}
+
+/* v5 generic map experience: no trip-specific dates or reservations */
+.map-wrap{position:relative;padding:0;background:#dfe7dd;border:1px solid #ccd5cc;border-radius:20px;overflow:hidden}
+.map-toolbar{position:absolute;z-index:8;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;pointer-events:none}
+.map-toolbar button{pointer-events:auto;border:1px solid rgba(17,24,39,.12);background:rgba(255,255,255,.94);color:#243044;box-shadow:0 3px 12px rgba(0,0,0,.16);font:800 11px system-ui,sans-serif}
+.map-park-buttons,.map-zoom-buttons{display:flex;gap:5px;padding:4px;background:rgba(255,255,255,.72);border-radius:12px;backdrop-filter:blur(8px)}
+.map-park-buttons button{padding:8px 10px;border-radius:9px}.map-park-buttons .active{background:#172b4d;color:#fff}
+.map-zoom-buttons button{width:34px;height:34px;border-radius:9px;font-size:17px}.map-zoom-buttons button:nth-child(2){font-size:10px}
+.map-viewport{position:relative;width:100%;height:clamp(420px,58vw,700px);overflow:hidden;background:#dfe7dd;touch-action:none;cursor:grab}
+.map-viewport:active{cursor:grabbing}
+.map-stage{position:absolute;left:0;top:0;width:100%;aspect-ratio:1536/1024;transform-origin:0 0;will-change:transform}
+.map-stage>img{position:absolute;inset:0;width:100%;height:100%;display:block;object-fit:fill;user-select:none;-webkit-user-drag:none}
+.map-stage>#map{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.map-scale{position:absolute;right:12px;bottom:12px;z-index:7;background:rgba(17,24,39,.82);color:#fff;padding:6px 9px;border-radius:8px;font:700 9px system-ui,sans-serif;pointer-events:none}
+.map-hint{z-index:7}
+@media(max-width:760px){.map-toolbar{top:8px;left:8px;right:8px;flex-direction:column}.map-park-buttons{max-width:100%;overflow-x:auto}.map-park-buttons button{white-space:nowrap}.map-zoom-buttons{align-self:flex-end}.map-viewport{height:clamp(430px,105vw,620px)}.map-hint{bottom:8px;left:8px;right:8px;max-width:none}.map-scale{bottom:55px;right:8px}}
