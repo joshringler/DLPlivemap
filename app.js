@@ -29,14 +29,44 @@ function status(r){if(r.category!=="attraction")return "event";if(CLOSED.include
 function waitText(r){if(r.category!=="attraction")return "EVENT";const s=status(r);if(s==="closed")return "CLOSED";const w=waitFor(r);if(!w)return "—";const n=Number(w.wait??w.wait_time);return Number.isFinite(n)?`${n}m`:"—"}
 function filtered(){const p=document.getElementById("park").value,t=document.getElementById("type").value,s=document.getElementById("state").value,q=norm(document.getElementById("search").value);return CATALOG.filter(r=>(p==="all"||r.park===p)&&(t==="all"||r.category===t)&&(!q||norm(r.name).includes(q)||norm(r.land).includes(q)||norm(r.category).includes(q))).filter(r=>{if(s==="done")return isDone(r);if(s==="todo")return !isDone(r);if(s==="closed")return status(r)==="closed";if(s==="live")return ["green","yellow","orange","red"].includes(status(r));return true})}
 const svg=document.getElementById("map");
-const LAYOUT={dlp:{x:20,y:20,w:550,h:700},daw:{x:630,y:20,w:550,h:700}};
+// Original lightweight vector layout, drawn from Disneyland Paris' published park-map geography.
+// It is intentionally an original schematic rather than a copied Disney map image.
+const LAYOUT={dlp:{x:20,y:20,w:590,h:720},daw:{x:650,y:20,w:530,h:720}};
 const LANDS={
-"dlp|Main Street U.S.A.":{x:35,y:80,w:150,h:250,fill:"#e8e0f4"},"dlp|Adventureland":{x:200,y:330,w:175,h:180,fill:"#d8eddc"},"dlp|Frontierland":{x:35,y:330,w:150,h:180,fill:"#f5dfc6"},"dlp|Fantasyland":{x:200,y:80,w:340,h:235,fill:"#dceafa"},"dlp|Discoveryland":{x:385,y:330,w:155,h:180,fill:"#d9e4e9"},
-"daw|World Premiere Plaza":{x:645,y:80,w:150,h:190,fill:"#e8e0f4"},"daw|Adventure Way":{x:810,y:80,w:110,h:430,fill:"#e8edcf"},"daw|Worlds of Pixar":{x:935,y:80,w:220,h:250,fill:"#f8dfc7"},"daw|Avengers Campus":{x:645,y:290,w:150,h:220,fill:"#dce2ef"},"daw|World of Frozen":{x:935,y:350,w:220,h:250,fill:"#d7edf2"}}
-function parkShape(p){const a=LAYOUT[p];return `<rect class="park" x="${a.x}" y="${a.y}" width="${a.w}" height="${a.h}" rx="30" fill="${p==="dlp"?"#fbfaf7":"#f8fbff"}"/><text class="park-label" x="${a.x+18}" y="${a.y+38}">${PARK[p]}</text>`}
+"dlp|Main Street U.S.A.":{x:235,y:500,w:160,h:205,fill:"#f0e1d8",shape:"main"},
+"dlp|Frontierland":{x:45,y:100,w:195,h:210,fill:"#ead6b8",shape:"round"},
+"dlp|Adventureland":{x:40,y:315,w:205,h:235,fill:"#cfe2c8",shape:"round"},
+"dlp|Fantasyland":{x:370,y:80,w:205,h:260,fill:"#d9e7f4",shape:"round"},
+"dlp|Discoveryland":{x:385,y:355,w:190,h:175,fill:"#d7e0e4",shape:"round"},
+"dlp|Entertainment":{x:255,y:355,w:120,h:90,fill:"#efe6c9",shape:"round"},
+"dlp|Character Encounters":{x:415,y:535,w:145,h:75,fill:"#f0d8e4",shape:"round"},
+"daw|Front Lot":{x:680,y:610,w:470,h:105,fill:"#eadfd7",shape:"round"},
+"daw|World Premiere Plaza":{x:770,y:505,w:290,h:110,fill:"#eee0e8",shape:"round"},
+"daw|Adventure Way":{x:885,y:285,w:95,h:225,fill:"#e5e5c8",shape:"way"},
+"daw|Worlds of Pixar":{x:680,y:250,w:195,h:245,fill:"#f0d8bf",shape:"round"},
+"daw|Avengers Campus":{x:995,y:245,w:175,h:250,fill:"#d9deea",shape:"round"},
+"daw|World of Frozen":{x:875,y:75,w:285,h:180,fill:"#cde7ed",shape:"round"},
+"daw|Entertainment":{x:785,y:365,w:95,h:100,fill:"#efe6c9",shape:"round"},
+"daw|Character Encounters":{x:995,y:505,w:150,h:75,fill:"#f0d8e4",shape:"round"}
+};
+const SHAPES={
+ round:l=>`<rect class="land" x="${l.x}" y="${l.y}" width="${l.w}" height="${l.h}" rx="34" fill="${l.fill}"/>`,
+ main:l=>`<path class="land" fill="${l.fill}" d="M${l.x+20} ${l.y} H${l.x+l.w-20} Q${l.x+l.w} ${l.y} ${l.x+l.w} ${l.y+20} V${l.y+l.h-20} Q${l.x+l.w} ${l.y+l.h} ${l.x+l.w-20} ${l.y+l.h} H${l.x+20} Q${l.x} ${l.y+l.h} ${l.x} ${l.y+l.h-20} V${l.y+20} Q${l.x} ${l.y} ${l.x+20} ${l.y}Z"/>`,
+ way:l=>`<path class="land" fill="${l.fill}" d="M${l.x+25} ${l.y} Q${l.x+l.w/2} ${l.y-18} ${l.x+l.w-25} ${l.y} L${l.x+l.w} ${l.y+l.h-20} Q${l.x+l.w/2} ${l.y+l.h+18} ${l.x} ${l.y+l.h-20}Z"/>`
+};
+function parkShape(p){const a=LAYOUT[p], title=PARK[p];let out=`<rect class="park" x="${a.x}" y="${a.y}" width="${a.w}" height="${a.h}" rx="42"/><text class="park-label" x="${a.x+22}" y="${a.y+34}">${title}</text>`;
+ if(p==='dlp'){
+   out+=`<path class="path" d="M70 465 C160 420 220 410 300 405 C380 400 455 420 535 465"/><path class="path" d="M315 700 V465"/><circle class="hub" cx="315" cy="405" r="78"/><path class="water" d="M275 335 C305 315 360 318 392 342 C410 356 414 378 400 394 C375 420 340 424 305 415 C270 405 255 375 275 335Z"/><path class="castle" d="M300 390 l15 -35 15 35 10 -28 12 28 16 -12 -5 35 h-78 l-5 -35 16 12Z"/><text class="hub-label" x="315" y="438" text-anchor="middle">Central Plaza</text>`;
+ } else {
+   out+=`<path class="water" d="M750 365 C790 325 840 300 890 315 C925 325 945 365 978 380 C1015 398 1070 370 1120 390 C1160 406 1170 455 1140 478 C1100 510 1055 495 1010 485 C960 474 930 500 880 490 C825 480 800 440 760 430 C720 420 710 395 750 365Z"/><path class="path" d="M700 645 C780 590 835 545 900 505 C940 480 995 475 1060 500 C1110 520 1145 570 1145 625"/><path class="path" d="M930 620 V285"/><text class="hub-label" x="1010" y="425" text-anchor="middle">Adventure Bay</text>`;
+ }
+ return out+`<text class="map-note" x="${a.x+a.w-20}" y="${a.y+a.h-16}" text-anchor="end">schematic • not to scale</text>`;
+}
 function landProgress(park,land){const rs=CATALOG.filter(r=>r.park===park&&r.land===land);const d=rs.filter(isDone).length;return [d,rs.length]}
-function markerPos(r,index){const l=LANDS[`${r.park}|${r.land}`];if(!l)return [50,50];const rs=CATALOG.filter(x=>x.park===r.park&&x.land===r.land);const i=rs.findIndex(x=>x.id===r.id);const cols=l.w<140?2:3;const rows=Math.ceil(rs.length/cols);const cellW=l.w/(cols+1),cellH=Math.max(34,(l.h-55)/(rows+1));return [l.x+cellW*((i%cols)+1),l.y+52+cellH*(Math.floor(i/cols)+1)]}
-function renderMap(){let out=parkShape("dlp")+parkShape("daw");Object.entries(LANDS).forEach(([k,l])=>{const [p,land]=k.split("|");const [d,total]=landProgress(p,land);const pct=total?Math.round(d/total*100):0;out+=`<g><rect class="land" x="${l.x}" y="${l.y}" width="${l.w}" height="${l.h}" rx="18" fill="${l.fill}"/><rect x="${l.x+2}" y="${l.y+2+l.h*(1-pct/100)}" width="${l.w-4}" height="${Math.max(0,l.h*pct/100-2)}" rx="15" fill="#16a34a" opacity=".20"/><text class="land-label" x="${l.x+10}" y="${l.y+22}">${land}</text><text class="land-count" x="${l.x+10}" y="${l.y+38}">${d}/${total} complete • ${pct}%</text></g>`});filtered().forEach((r,i)=>{const [x,y]=markerPos(r,i),s=status(r),done=isDone(r),wt=waitText(r),cls=done?"done":s==="nodata"?"no-data":s==="closed"?"closed":s==="event"?"no-data":"live-"+s;const glyph=done?"✓":r.category!=="attraction"?"★":wt==="—"?"—":wt.replace("m","");out+=`<g class="marker ${cls}" data-id="${r.id}" transform="translate(${x} ${y})" tabindex="0" role="button" aria-label="${esc(r.name)} — ${esc(wt)}"><circle class="hit" r="22"/><rect class="box" x="-15" y="-15" width="30" height="30" rx="8"/><text>${glyph}</text><text class="marker-label" y="26">${esc(short(r.name))}</text></g>`});svg.innerHTML=out;svg.querySelectorAll(".marker").forEach(g=>{g.addEventListener("click",()=>openDrawer(g.dataset.id));g.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" ")openDrawer(g.dataset.id)})})}
+function markerPos(r,index){const l=LANDS[`${r.park}|${r.land}`];if(!l)return [50,50];const rs=CATALOG.filter(x=>x.park===r.park&&x.land===r.land);const i=rs.findIndex(x=>x.id===r.id);const cols=l.w<120?2:l.w<180?2:3;const rows=Math.ceil(rs.length/cols);const padX=Math.max(16,l.w/(cols+1));const usableH=Math.max(34,l.h-52);const cellH=Math.max(31,usableH/(rows+1));return [l.x+padX*((i%cols)+1),l.y+43+cellH*(Math.floor(i/cols)+1)]}
+function renderMap(){let out=parkShape("dlp")+parkShape("daw");Object.entries(LANDS).forEach(([k,l])=>{const [p,land]=k.split("|"),[d,total]=landProgress(p,land),pct=total?Math.round(d/total*100):0;const shape=SHAPES[l.shape](l);out+=`<g class="land-group">${shape}<rect class="land-progress" x="${l.x}" y="${l.y+l.h*(1-pct/100)}" width="${l.w}" height="${Math.max(0,l.h*pct/100)}" rx="28" opacity="${pct?0.18:0}"/><text class="land-label" x="${l.x+12}" y="${l.y+22}">${esc(land)}</text><text class="land-count" x="${l.x+12}" y="${l.y+39}">${d}/${total} • ${pct}%</text></g>`});
+ filtered().forEach(r=>{const [x,y]=markerPos(r),s=status(r),done=isDone(r),wt=waitText(r),cls=done?"done":s==="nodata"?"no-data":s==="closed"?"closed":s==="event"?"event":"live-"+s;const glyph=done?"✓":r.category==="show"?"S":r.category==="character"?"C":wt==="—"?"—":wt.replace("m","");out+=`<g class="marker ${cls}" data-id="${r.id}" transform="translate(${x} ${y})" tabindex="0" role="button" aria-label="${esc(r.name)} — ${esc(wt)}"><circle class="hit" r="20"/><rect class="box" x="-14" y="-14" width="28" height="28" rx="7"/><text class="glyph">${glyph}</text><text class="marker-label" y="23">${esc(short(r.name))}</text></g>`});
+ svg.innerHTML=out;svg.querySelectorAll(".marker").forEach(g=>{g.addEventListener("click",()=>openDrawer(g.dataset.id));g.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();openDrawer(g.dataset.id)}})})}
 function short(s){const words=s.replace(/[™®]/g,"").split(" ");return words.length>3?words.slice(0,3).join(" ")+"…":s}
 function esc(s){return String(s).replace(/[&<>\"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
 function renderList(){const el=document.getElementById("list");el.innerHTML=filtered().map(r=>`<article class="list-card" data-id="${r.id}"><input class="cb" type="checkbox" ${isDone(r)?"checked":""}><div class="main"><div class="name">${esc(r.name)}</div><div class="sub">${PARK[r.park]} • ${esc(r.land)} • ${r.category}</div></div><span class="wait ${status(r)}">${waitText(r)}${r.category==="attraction"&&waitFor(r)?"<small>LIVE</small>":""}</span></article>`).join("")||"<div class='list-card'>Nothing matches.</div>";el.querySelectorAll(".list-card").forEach(c=>{const r=CATALOG.find(x=>x.id===c.dataset.id);c.querySelector(".cb").addEventListener("click",e=>{e.stopPropagation();toggle(r)});c.addEventListener("click",e=>{if(!e.target.classList.contains("cb"))openDrawer(r.id)})})}
