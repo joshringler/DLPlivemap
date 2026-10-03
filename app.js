@@ -125,9 +125,51 @@ document.getElementById("zoomOut").onclick=()=>setZoom(zoom-.25,mapViewport.clie
 document.getElementById("zoomReset").onclick=()=>focusMap("resort");
 document.querySelectorAll(".map-focus").forEach(b=>b.addEventListener("click",()=>focusMap(b.dataset.focus)));
 mapViewport.addEventListener("wheel",e=>{e.preventDefault();const r=mapViewport.getBoundingClientRect();setZoom(zoom+(e.deltaY<0?.2:-.2),e.clientX-r.left,e.clientY-r.top)},{passive:false});
-mapViewport.addEventListener("pointerdown",e=>{if(e.pointerType==="mouse"&&e.button!==0)return;drag={id:e.pointerId,x:e.clientX,y:e.clientY,px:panX,py:panY};mapViewport.setPointerCapture(e.pointerId)});
-mapViewport.addEventListener("pointermove",e=>{if(!drag||drag.id!==e.pointerId)return;panX=drag.px+e.clientX-drag.x;panY=drag.py+e.clientY-drag.y;applyMapTransform()});
-mapViewport.addEventListener("pointerup",e=>{if(drag?.id===e.pointerId)drag=null});
-mapViewport.addEventListener("pointercancel",()=>drag=null);
+
+// Touch-friendly map gestures: one finger pans; two fingers pinch-zoom and pan together.
+const pointers=new Map();
+let pinch=null;
+function pointFor(e){const r=mapViewport.getBoundingClientRect();return {x:e.clientX-r.left,y:e.clientY-r.top}}
+function twoPointerState(){
+  const pts=[...pointers.values()]; if(pts.length<2)return null;
+  const a=pts[0],b=pts[1],dx=b.x-a.x,dy=b.y-a.y;
+  return {dist:Math.hypot(dx,dy),midX:(a.x+b.x)/2,midY:(a.y+b.y)/2};
+}
+mapViewport.addEventListener("pointerdown",e=>{
+  if(e.pointerType==="mouse"&&e.button!==0)return;
+  const pt=pointFor(e); pointers.set(e.pointerId,pt);
+  try{mapViewport.setPointerCapture(e.pointerId)}catch(_){}
+  if(pointers.size===1){
+    pinch=null; drag={id:e.pointerId,x:e.clientX,y:e.clientY,px:panX,py:panY};
+  }else if(pointers.size===2){
+    drag=null; const g=twoPointerState();
+    pinch={startDist:Math.max(1,g.dist),startZoom:zoom,startMidX:g.midX,startMidY:g.midY,startPanX:panX,startPanY:panY};
+  }
+});
+mapViewport.addEventListener("pointermove",e=>{
+  if(!pointers.has(e.pointerId))return;
+  pointers.set(e.pointerId,pointFor(e));
+  if(pointers.size>=2&&pinch){
+    const g=twoPointerState(); if(!g)return;
+    const nextZoom=clamp(pinch.startZoom*(g.dist/pinch.startDist),1,3);
+    const ratio=nextZoom/pinch.startZoom;
+    panX=g.midX-(pinch.startMidX-pinch.startPanX)*ratio;
+    panY=g.midY-(pinch.startMidY-pinch.startPanY)*ratio;
+    zoom=nextZoom; applyMapTransform();
+  }else if(drag&&drag.id===e.pointerId){
+    panX=drag.px+e.clientX-drag.x; panY=drag.py+e.clientY-drag.y; applyMapTransform();
+  }
+});
+function endPointer(e){
+  pointers.delete(e.pointerId);
+  if(pointers.size===0){drag=null;pinch=null}
+  else if(pointers.size===1){
+    const [id,pt]=pointers.entries().next().value;
+    drag={id,x:pt.x,y:pt.y,px:panX,py:panY}; pinch=null;
+  }
+}
+mapViewport.addEventListener("pointerup",endPointer);
+mapViewport.addEventListener("pointercancel",endPointer);
+mapViewport.addEventListener("pointerleave",()=>{});
 window.addEventListener("resize",()=>applyMapTransform());
 loadWaits();setInterval(loadWaits,300000);renderAll();
