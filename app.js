@@ -30,25 +30,26 @@ function filtered(){const p=document.getElementById("park").value,t=document.get
 const svg=document.getElementById("map");
 const mapViewport=document.getElementById("mapViewport");
 const mapStage=document.getElementById("mapStage");
+const mapImage=document.getElementById("mapImage");
 const zoomLabel=document.getElementById("zoomLabel");
-
-// Interactive marker zones are aligned to the original illustrated resort artwork.
-// The artwork remains the visual map; the SVG layer supplies live status and completion controls.
+let mapFocus="dlp";
+const MAP_IMAGES={resort:"resort-map.png",dlp:"disneyland-park-map.png",daw:"adventure-world-map.png"};
+// Marker zones use each artwork's 1536×1024 coordinate system.
 const MAP_ZONES={
- "dlp|Main Street U.S.A.":{x:320,y:470,w:280,h:330},
- "dlp|Adventureland":{x:70,y:230,w:280,h:250},
- "dlp|Frontierland":{x:40,y:500,w:300,h:245},
- "dlp|Fantasyland":{x:220,y:95,w:340,h:340},
- "dlp|Discoveryland":{x:500,y:245,w:255,h:300},
- "daw|World Premiere Plaza":{x:780,y:120,w:330,h:250},
- "daw|Adventure Way":{x:650,y:590,w:330,h:250},
- "daw|Worlds of Pixar":{x:1230,y:390,w:270,h:330},
- "daw|Avengers Campus":{x:900,y:600,w:350,h:280},
- "daw|World of Frozen":{x:1180,y:75,w:310,h:285},
- "dlp|Entertainment":{x:335,y:355,w:180,h:130},
- "dlp|Character Encounters":{x:250,y:290,w:320,h:300},
- "daw|Entertainment":{x:780,y:340,w:390,h:260},
- "daw|Character Encounters":{x:900,y:330,w:450,h:360}
+ "dlp|Main Street U.S.A.":{x:650,y:690,w:300,h:250},
+ "dlp|Adventureland":{x:250,y:430,w:340,h:300},
+ "dlp|Frontierland":{x:330,y:270,w:360,h:280},
+ "dlp|Fantasyland":{x:590,y:90,w:430,h:330},
+ "dlp|Discoveryland":{x:1030,y:220,w:390,h:390},
+ "dlp|Entertainment":{x:650,y:560,w:320,h:180},
+ "dlp|Character Encounters":{x:570,y:250,w:500,h:420},
+ "daw|World Premiere Plaza":{x:650,y:700,w:360,h:220},
+ "daw|Adventure Way":{x:690,y:570,w:340,h:180},
+ "daw|Worlds of Pixar":{x:980,y:360,w:480,h:300},
+ "daw|Avengers Campus":{x:1020,y:80,w:410,h:270},
+ "daw|World of Frozen":{x:670,y:30,w:330,h:300},
+ "daw|Entertainment":{x:650,y:430,w:650,h:250},
+ "daw|Character Encounters":{x:850,y:160,w:560,h:470}
 };
 
 function landProgress(park,land){const rs=CATALOG.filter(r=>r.park===park&&r.land===land);const d=rs.filter(isDone).length;return [d,rs.length]}
@@ -69,13 +70,21 @@ function landChip(park,land){
 }
 function renderMap(){
   let out='';
-  LAND_ORDER.dlp.concat(LAND_ORDER.daw).forEach((land)=>{const p=LAND_ORDER.dlp.includes(land)?'dlp':'daw';out+=landChip(p,land)});
-  filtered().forEach(r=>{
+  if(mapFocus==="resort"){
+    out += `<g class="resort-label"><rect x="110" y="535" width="570" height="52" rx="20"/><text x="395" y="569" text-anchor="middle">DISNEYLAND PARK</text></g>`;
+    out += `<g class="resort-label"><rect x="850" y="535" width="570" height="52" rx="20"/><text x="1135" y="569" text-anchor="middle">DISNEY ADVENTURE WORLD</text></g>`;
+    LAND_ORDER.dlp.forEach((land,i)=>{const [d,total]=landProgress('dlp',land);out+=`<g class="resort-progress"><text x="120" y="${620+i*55}">${esc(land)} — ${d}/${total}</text></g>`});
+    LAND_ORDER.daw.forEach((land,i)=>{const [d,total]=landProgress('daw',land);out+=`<g class="resort-progress"><text x="860" y="${620+i*55}">${esc(land)} — ${d}/${total}</text></g>`});
+  } else {
+    const park=mapFocus;
+    LAND_ORDER[park].forEach(land=>{out+=landChip(park,land)});
+    filtered().filter(r=>r.park===park).forEach(r=>{
     const [x,y]=markerPos(r),s=status(r),done=isDone(r),wt=waitText(r);
     const cls=done?'done':s==='nodata'?'no-data':s==='closed'?'closed':s==='event'?'event':'live-'+s;
     const glyph=done?'✓':r.category==='show'?'S':r.category==='character'?'C':wt==='—'?'•':wt.replace('m','');
     out+=`<g class="marker ${cls}" data-id="${r.id}" transform="translate(${x} ${y})" tabindex="0" role="button" aria-label="${esc(r.name)} — ${esc(wt)}"><circle class="hit" r="25"/><rect class="box" x="-18" y="-18" width="36" height="36" rx="10"/><text class="glyph">${glyph}</text><circle class="check-ring" r="21"/></g>`;
-  });
+    });
+  }
   svg.innerHTML=out;
   svg.querySelectorAll('.marker').forEach(g=>{g.addEventListener('click',()=>openDrawer(g.dataset.id));g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openDrawer(g.dataset.id)}})});
 }
@@ -93,7 +102,26 @@ function applyFilters(){renderAll()}
 document.querySelectorAll(".tabs button").forEach(b=>b.addEventListener("click",()=>{view=b.dataset.view;renderAll()}));
 document.getElementById("reset").onclick=()=>{if(confirm("Reset all completed attractions and experiences on this device?")){checked={};save();renderAll()}};
 document.getElementById("refresh").onclick=loadWaits;
-async function loadWaits(){document.getElementById("updated").textContent="Refreshing…";try{const urls=["https://queue-times.com/parks/4/queue_times.json?ts="+Date.now(),"https://queue-times.com/parks/28/queue_times.json?ts="+Date.now()];const rs=await Promise.all(urls.map(u=>fetch(u,{cache:"no-store"})));if(rs.some(r=>!r.ok))throw new Error("Queue-Times request failed");const js=await Promise.all(rs.map(r=>r.json()));waits={};js.forEach(j=>(j.lands||[]).forEach(l=>(l.rides||[]).forEach(x=>{waits[x.name]={wait:x.wait_time,is_open:x.is_open,closed:x.is_open===false,last_updated:x.last_updated}})));dataUpdated=js.flatMap(j=>(j.lands||[]).flatMap(l=>(l.rides||[]).map(x=>x.last_updated).filter(Boolean))).sort().pop()||new Date().toISOString();document.getElementById("source").innerHTML='Wait source: <a href="https://queue-times.com/" target="_blank" rel="noopener">Queue-Times.com</a>';document.getElementById("updated").textContent="Updated "+new Date(dataUpdated).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"});renderAll();document.getElementById("progress").style.animation="none";void document.getElementById("progress").offsetWidth;document.getElementById("progress").style.animation="shrink 300s linear forwards"}catch(e){document.getElementById("updated").textContent="Live wait feed unavailable";document.getElementById("source").innerHTML='Wait source: <a href="https://queue-times.com/" target="_blank" rel="noopener">Queue-Times.com</a> • checklist still works';renderAll()}}
+async function loadWaits(){
+  const updated=document.getElementById("updated");
+  updated.textContent="Refreshing…";
+  try{
+    const r=await fetch("waits.json?ts="+Date.now(),{cache:"no-store"});
+    if(!r.ok)throw new Error("Local wait cache request failed");
+    const j=await r.json();
+    waits=j.waits&&typeof j.waits==="object"?j.waits:{};
+    dataUpdated=j.updated||null;
+    if(!Object.keys(waits).length)throw new Error("Wait cache is empty");
+    document.getElementById("source").innerHTML='Wait source: <a href="https://queue-times.com/" target="_blank" rel="noopener">Queue-Times.com</a> • cached server-side to avoid browser CORS';
+    updated.textContent=dataUpdated?"Updated "+new Date(dataUpdated).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"}):"Live waits loaded";
+    renderAll();
+  }catch(e){
+    document.getElementById("source").innerHTML='Wait source: <a href="https://queue-times.com/" target="_blank" rel="noopener">Queue-Times.com</a> • waiting for the server feed';
+    updated.textContent="Live wait feed unavailable";
+    renderAll();
+  }
+}
+
 function clamp(v,min,max){return Math.max(min,Math.min(max,v))}
 function applyMapTransform(){
   if(!mapStage||!mapViewport)return;
@@ -112,17 +140,17 @@ function setZoom(next,cx=null,cy=null){
   applyMapTransform();
 }
 function focusMap(kind){
-  const targets={resort:[768,512,1],dlp:[400,470,1.75],daw:[1120,470,1.75]};
-  const [tx,ty,z]=targets[kind]||targets.resort;
-  zoom=z;
-  const vw=mapViewport.clientWidth,vh=mapViewport.clientHeight;
-  panX=vw/2-(tx/1536*vw)*zoom; panY=vh/2-(ty/1024*(vw*1024/1536))*zoom;
-  applyMapTransform();
-  document.querySelectorAll(".map-focus").forEach(b=>b.classList.toggle("active",b.dataset.focus===kind));
+  mapFocus=kind||"dlp";
+  if(mapImage){mapImage.src=MAP_IMAGES[mapFocus]||MAP_IMAGES.dlp;mapImage.alt=mapFocus==="daw"?"Illustrated top-down map of Disney Adventure World":mapFocus==="resort"?"Illustrated overview of Disneyland Paris resort":"Illustrated top-down map of Disneyland Park";}
+  zoom=1;panX=0;panY=0;
+  document.querySelectorAll(".map-focus").forEach(b=>b.classList.toggle("active",b.dataset.focus===mapFocus));
+  renderMap();applyMapTransform();
 }
+
 document.getElementById("zoomIn").onclick=()=>setZoom(zoom+.25,mapViewport.clientWidth/2,mapViewport.clientHeight/2);
 document.getElementById("zoomOut").onclick=()=>setZoom(zoom-.25,mapViewport.clientWidth/2,mapViewport.clientHeight/2);
-document.getElementById("zoomReset").onclick=()=>focusMap("resort");
+document.getElementById("zoomReset").onclick=()=>focusMap(mapFocus);
+document.querySelectorAll(".map-focus").forEach(b=>b.addEventListener("click",()=>focusMap(b.dataset.focus)));
 document.querySelectorAll(".map-focus").forEach(b=>b.addEventListener("click",()=>focusMap(b.dataset.focus)));
 mapViewport.addEventListener("wheel",e=>{e.preventDefault();const r=mapViewport.getBoundingClientRect();setZoom(zoom+(e.deltaY<0?.2:-.2),e.clientX-r.left,e.clientY-r.top)},{passive:false});
 
@@ -172,4 +200,5 @@ mapViewport.addEventListener("pointerup",endPointer);
 mapViewport.addEventListener("pointercancel",endPointer);
 mapViewport.addEventListener("pointerleave",()=>{});
 window.addEventListener("resize",()=>applyMapTransform());
+focusMap("dlp");
 loadWaits();setInterval(loadWaits,300000);renderAll();

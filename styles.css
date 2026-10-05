@@ -58,3 +58,5 @@
 .map-scale{position:absolute;right:12px;bottom:12px;z-index:7;background:rgba(17,24,39,.82);color:#fff;padding:6px 9px;border-radius:8px;font:700 9px system-ui,sans-serif;pointer-events:none}
 .map-hint{z-index:7}
 @media(max-width:760px){.map-toolbar{top:8px;left:8px;right:8px;flex-direction:column}.map-park-buttons{max-width:100%;overflow-x:auto}.map-park-buttons button{white-space:nowrap}.map-zoom-buttons{align-self:flex-end}.map-viewport{height:clamp(430px,105vw,620px)}.map-hint{bottom:8px;left:8px;right:8px;max-width:none}.map-scale{bottom:55px;right:8px}}
+
+.resort-label rect{fill:rgba(255,255,255,.88);stroke:#243447;stroke-width:3}.resort-label text{font:700 24px system-ui,sans-serif;fill:#243447;letter-spacing:1px}.resort-progress text{font:600 20px system-ui,sans-serif;fill:#243447}

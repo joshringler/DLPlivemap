@@ -17,12 +17,12 @@
 <section id="mapView" class="view">
   <div class="map-wrap">
     <div class="map-toolbar" aria-label="Map controls">
-      <div class="map-park-buttons"><button class="map-focus active" data-focus="resort">Resort</button><button class="map-focus" data-focus="dlp">Disneyland Park</button><button class="map-focus" data-focus="daw">Adventure World</button></div>
+      <div class="map-park-buttons"><button class="map-focus" data-focus="resort">Resort</button><button class="map-focus active" data-focus="dlp">Disneyland Park</button><button class="map-focus" data-focus="daw">Adventure World</button></div>
       <div class="map-zoom-buttons"><button id="zoomOut" aria-label="Zoom out">−</button><button id="zoomReset" aria-label="Reset map zoom">1×</button><button id="zoomIn" aria-label="Zoom in">+</button></div>
     </div>
     <div class="map-viewport" id="mapViewport">
       <div class="map-stage" id="mapStage">
-        <img src="resort-map.png" alt="Detailed illustrated overview of Disneyland Park and Disney Adventure World at Disneyland Paris">
+        <img id="mapImage" src="disneyland-park-map.png" alt="Illustrated top-down map of Disneyland Park">
         <svg id="map" viewBox="0 0 1536 1024" aria-label="Interactive Disneyland Paris illustrated map overlay"></svg>
       </div>
       <div class="map-scale"><span id="zoomLabel">100%</span> • Drag to pan • Scroll or +/− to zoom</div>

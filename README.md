@@ -1,16 +1,13 @@
-# DLP Live Map — v7 Final Assets
+# DLP Live Map
 
-Generic Disneyland Paris live map / checklist web app.
+Mobile-first Disneyland Paris resort guide with interactive map, checklist, and live attraction waits.
 
-## Included
-- `index.html` — app shell
-- `app.js` — catalog, live waits, checklist, map interactions and pinch-to-zoom
-- `styles.css` — mobile-first styling
-- `waits.json` — fallback/static data file
-- `resort-map.png` — existing interactive resort map background used by the app
-- `disneyland-park-map.png` — new illustrated Disneyland Park artwork
-- `adventure-world-map.png` — new illustrated Disney Adventure World artwork
+## Map artwork
+- `disneyland-park-map.png` — new Disneyland Park artwork
+- `adventure-world-map.png` — new Disney Adventure World artwork
+- `resort-map.png` — new resort overview composed from the two new park artworks
 
-The two new park artworks are supplied as separate assets so they can be integrated into the interactive map overlay without disrupting the existing coordinate system.
+## Live waits
+The browser loads `waits.json` from the same GitHub Pages origin. A GitHub Actions workflow fetches Queue-Times server-side every 5 minutes, avoiding browser CORS problems with the external API. The workflow can also be run manually from **Actions → Update live wait times → Run workflow**.
 
-Live wait times use Queue-Times when available; attractions remain visible if live data is unavailable. Completion state is saved locally on the device.
+Queue-Times attribution is displayed in the app. Attractions remain visible when a ride has no live feed.
